@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GRUBBRR Kiosk Simulator - Bug Fix Documentation</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --kiosk-bg: #1a1a2e;
+      --kiosk-border: #333;
+      --kiosk-screen: #0f0f23;
+      --text-primary: #fff;
+      --text-secondary: #888;
+      --accent-primary: #00d4ff;
+      --accent-success: #00ff88;
+      --accent-danger: #ff4444;
+      --accent-warning: #ffaa00;
+      --sidebar-bg: #0a0a0f;
+      --bug-card-bg: rgba(255,255,255,0.05);
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--sidebar-bg);
+      color: var(--text-primary);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+    
+    /* Main Layout */
+    .container {
+      display: flex;
+      width: 100%;
+      height: 100%;
+    }
+    
+    /* Left: Kiosk Simulator */
+    .kiosk-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+    }
+    
+    .kiosk-frame {
+      width: 400px;
+      height: 700px;
+      background: #000;
+      border-radius: 30px;
+      padding: 15px;
+      border: 4px solid var(--kiosk-border);
+      box-shadow: 0 0 60px rgba(0,212,255,0.2);
+      position: relative;
+    }
+    
+    .kiosk-screen {
+      width: 100%;
+      height: 100%;
+      background: var(--kiosk-screen);
+      border-radius: 20px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* Kiosk Header */
+    .kiosk-header {
+      background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+      padding: 15px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+    
+    /* Kiosk Navigation */
+    .kiosk-nav {
+      display: flex;
+      background: rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .kiosk-nav-btn {
+      flex: 1;
+      padding: 12px 8px;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-bottom: 3px solid transparent;
+    }
+    
+    .kiosk-nav-btn:hover,
+    .kiosk-nav-btn.active {
+      color: var(--accent-primary);
+      border-bottom-color: var(--accent-primary);
+      background: rgba(0,212,255,0.1);
+    }
+    
+    /* Kiosk Content */
+    .kiosk-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px;
+      position: relative;
+    }
+    
+    /* Bug Highlight Overlay */
+    .bug-highlight {
+      position: absolute;
+      border: 3px solid var(--accent-danger);
+      border-radius: 8px;
+      pointer-events: none;
+      animation: pulse-border 1.5s infinite;
+      z-index: 100;
+      display: none;
+    }
+    
+    .bug-highlight.active {
+      display: block;
+    }
+    
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255,68,68,0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(255,68,68,0); }
+    }
+    
+    /* Payment Screen */
+    .payment-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 10px;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    
+    .payment-card:hover {
+      border-color: var(--accent-primary);
+    }
+    
+    .payment-card.selected {
+      border-color: var(--accent-success);
+      background: rgba(0,255,136,0.1);
+    }
+    
+    .card-type {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .card-number {
+      color: var(--text-secondary);
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+    
+    /* Broken State */
+    .broken .card-type.na {
+      color: var(--accent-danger);
+    }
+    
+    /* Refund Screen */
+    .refund-item {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 10px;
+    }
+    
+    .refund-status {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+    
+    .refund-status.error {
+      background: var(--accent-danger);
+      color: #fff;
+    }
+    
+    .refund-status.success {
+      background: var(--accent-success);
+      color: #000;
+    }
+    
+    /* Scanner Screen */
+    .scanner-area {
+      background: rgba(0,255,136,0.1);
+      border: 3px dashed var(--accent-success);
+      border-radius: 16px;
+      padding: 50px 20px;
+      text-align: center;
+      margin: 20px 0;
+      position: relative;
+    }
+    
+    .scanner-laser {
+      position: absolute;
+      top: 50%;
+      left: 10%;
+      right: 10%;
+      height: 2px;
+      background: var(--accent-success);
+      box-shadow: 0 0 10px var(--accent-success);
+      animation: scan 2s linear infinite;
+    }
+    
+    @keyframes scan {
+      0% { transform: translateY(-30px); opacity: 0; }
+      50% { opacity: 1; }
+      100% { transform: translateY(30px); opacity: 0; }
+    }
+    
+    /* Order Screen */
+    .order-item {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 10px;
+    }
+    
+    .item-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    
+    .quantity-control {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .qty-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent-primary);
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .qty-slider {
+      flex: 1;
+      height: 6px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 3px;
+      position: relative;
+    }
+    
+    .qty-thumb {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      background: var(--accent-primary);
+      border-radius: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      cursor: grab;
+    }
+    
+    /* Right: Bug Sidebar */
+    .sidebar {
+      width: 450px;
+      background: var(--sidebar-bg);
+      border-left: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .sidebar-header h2 {
+      font-size: 1.3rem;
+      margin-bottom: 10px;
+      color: var(--accent-primary);
+    }
+    
+    .mode-toggle {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .mode-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      background: var(--bug-card-bg);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    
+    .mode-btn.broken {
+      border-color: var(--accent-danger);
+      color: var(--accent-danger);
+    }
+    
+    .mode-btn.broken.active {
+      background: var(--accent-danger);
+      color: #fff;
+    }
+    
+    .mode-btn.fixed {
+      border-color: var(--accent-success);
+      color: var(--accent-success);
+    }
+    
+    .mode-btn.fixed.active {
+      background: var(--accent-success);
+      color: #000;
+    }
+    
+    /* Bug List */
+    .bug-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px;
+    }
+    
+    .bug-card {
+      background: var(--bug-card-bg);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 12px;
+      border-left: 4px solid var(--accent-danger);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .bug-card:hover {
+      background: rgba(255,255,255,0.1);
+      transform: translateX(5px);
+    }
+    
+    .bug-card.active {
+      background: rgba(0,212,255,0.1);
+      border-left-color: var(--accent-primary);
+    }
+    
+    .bug-card.fixed {
+      border-left-color: var(--accent-success);
+    }
+    
+    .bug-id {
+      font-family: monospace;
+      font-size: 0.85rem;
+      color: var(--accent-primary);
+      margin-bottom: 5px;
+    }
+    
+    .bug-title {
+      font-size: 0.95rem;
+      line-height: 1.4;
+      margin-bottom: 8px;
+    }
+    
+    .bug-meta {
+      display: flex;
+      gap: 10px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+    
+    .bug-priority {
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+      font-size: 0.7rem;
+    }
+    
+    .priority-highest {
+      background: var(--accent-danger);
+      color: #fff;
+    }
+    
+    .priority-high {
+      background: var(--accent-warning);
+      color: #000;
+    }
+    
+    /* Bug Detail Panel */
+    .bug-detail {
+      padding: 20px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      background: rgba(0,0,0,0.3);
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .bug-detail h3 {
+      color: var(--accent-primary);
+      margin-bottom: 15px;
+      font-size: 1.1rem;
+    }
+    
+    .detail-section {
+      margin-bottom: 15px;
+    }
+    
+    .detail-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 5px;
+    }
+    
+    .detail-value {
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    
+    /* Screen visibility */
+    .screen-panel {
+      display: none;
+    }
+    
+    .screen-panel.active {
+      display: block;
+    }
+    
+    /* Action Button */
+    .action-btn {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(90deg, var(--accent-primary), #7b2cbf);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+    
+    .action-btn:disabled {
+      background: #444;
+      cursor: not-allowed;
+    }
+    
+    /* Status Badge */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: bold;
+    }
+    
+    .status-fixed {
+      background: rgba(0,255,136,0.2);
+      color: var(--accent-success);
+    }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: rgba(255,255,255,0.05);
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255,255,255,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Left: Kiosk Simulator -->
+    <div class="kiosk-section">
+      <div style="margin-bottom: 20px; text-align: center;">
+        <h1 style="font-size: 1.5rem; margin-bottom: 5px;">GRUBBRR Kiosk Simulator</h1>
+        <p style="color: var(--text-secondary);">Real-time bug visualization</p>
+      </div>
+      
+      <div class="kiosk-frame" id="kioskFrame">
+        <div class="kiosk-screen" id="kioskScreen">
+          <div class="kiosk-header">
+            GRUBBRR Self-Service
+          </div>
+          
+          <div class="kiosk-nav">
+            <button class="kiosk-nav-btn active" onclick="switchScreen('payment')">Payment</button>
+            <button class="kiosk-nav-btn" onclick="switchScreen('refund')">Refund</button>
+            <button class="kiosk-nav-btn" onclick="switchScreen('scanner')">Scan</button>
+            <button class="kiosk-nav-btn" onclick="switchScreen('order')">Order</button>
+          </div>
+          
+          <div class="kiosk-content" id="kioskContent">
+            <!-- Bug Highlight Overlay -->
+            <div class="bug-highlight" id="bugHighlight"></div>
+            
+            <!-- Payment Screen -->
+            <div class="screen-panel active" id="screen-payment">
+              <h3 style="margin-bottom: 15px;">Select Payment</h3>
+              <div class="payment-card" id="payment-card-1" data-bug="NGE-13870">
+                <div class="card-type" id="card-type-display">Credit / N/A</div>
+                <div class="card-number">**** **** **** 4242</div>
+              </div>
+              <div class="payment-card">
+                <div class="card-type">Debit Card</div>
+                <div class="card-number">**** **** **** 8888</div>
+              </div>
+              <button class="action-btn" id="pay-btn" disabled>Pay $45.67</button>
+            </div>
+            
+            <!-- Refund Screen -->
+            <div class="screen-panel" id="screen-refund">
+              <h3 style="margin-bottom: 15px;">Refund Status</h3>
+              <div class="refund-item" id="refund-item-1" data-bug="NGE-13857">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <strong>Order #12345</strong>
+                  <span>$45.67</span>
+                </div>
+                <div style="color: var(--text-secondary); font-size: 0.85rem;">Feb 15, 2026 • Burger Combo</div>
+                <div class="refund-status error" id="refund-status-display">Failed to refund</div>
+              </div>
+            </div>
+            
+            <!-- Scanner Screen -->
+            <div class="screen-panel" id="screen-scanner">
+              <h3 style="margin-bottom: 15px;">Loyalty Card</h3>
+              <div class="scanner-area" id="scanner-area" data-bug="NGE-13820">
+                <div class="scanner-laser" id="scanner-laser"></div>
+                <div style="font-size: 3rem; margin-bottom: 15px;">📷</div>
+                <div style="font-size: 1.1rem;">Scan QR Code</div>
+                <div style="color: var(--accent-success); margin-top: 10px; font-size: 0.85rem;" id="scanner-status">Scanner active</div>
+              </div>
+              <p style="text-align: center; color: var(--text-secondary); font-size: 0.85rem;">Position QR code in frame</p>
+            </div>
+            
+            <!-- Order Screen -->
+            <div class="screen-panel" id="screen-order">
+              <h3 style="margin-bottom: 15px;">Your Order</h3>
+              <div class="order-item" id="order-item-1" data-bug="NGE-13897">
+                <div class="item-header">
+                  <div>
+                    <strong>Burger Combo</strong>
+                    <div style="color: var(--text-secondary); font-size: 0.85rem;">$12.99</div>
+                  </div>
+                </div>
+                <div class="quantity-control">
+                  <button class="qty-btn">-</button>
+                  <div class="qty-slider" id="slider-1">
+                    <div class="qty-thumb" style="left: 60%;"></div>
+                  </div>
+                  <span id="qty-display-1">2</span>
+                </div>
+              </div>
+              <div class="order-item" id="order-item-2" data-bug="NGE-13897">
+                <div class="item-header">
+                  <div>
+                    <strong>Fries</strong>
+                    <div style="color: var(--text-secondary); font-size: 0.85rem;">$4.99</div>
+                  </div>
+                </div>
+                <div class="quantity-control">
+                  <button class="qty-btn">-</button>
+                  <div class="qty-slider" id="slider-2">
+                    <div class="qty-thumb" id="thumb-2" style="left: 30%;"></div>
+                  </div>
+                  <span id="qty-display-2">1</span>
+                </div>
+              </div>
+              <button class="action-btn">Checkout</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Right: Bug Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2>🐛 Bugs Fixed (55 Total)</h2>
+        <div class="mode-toggle">
+          <button class="mode-btn broken active" id="btn-broken" onclick="setMode('broken')">
+            🔴 BROKEN
+          </button>
+          <button class="mode-btn fixed" id="btn-fixed" onclick="setMode('fixed')">
+            🟢 FIXED
+          </button>
+        </div>
+      </div>
+      
+      <div class="bug-list" id="bugList">
+        <!-- Bug cards generated by JS -->
+      </div>
+      
+      <div class="bug-detail" id="bugDetail">
+        <p style="color: var(--text-secondary); text-align: center;">
+          Click a bug to see details and highlight in kiosk
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Bug data - Matches actual GRUBBRR JIRA tickets
+    const bugs = [
+      {
+        id: 'NGE-13870',
+        title: 'Payment card type shows "Credit / N/A" instead of actual card',
+        priority: 'Highest',
+        category: 'payment',
+        screen: 'payment',
+        selector: '#payment-card-1',
+        impact: 'Users confused about payment method, 15% error rate',
+        fix: 'Added card network detection with regex patterns',
+        tests: '14 tests passing',
+        fixed: true
+      },
+      {
+        id: 'NGE-13857',
+        title: 'Refund status mismatch - kiosk shows fail, backend shows success',
+        priority: 'Highest',
+        category: 'payment',
+        screen: 'refund',
+        selector: '#refund-item-1',
+        impact: 'Duplicate refund attempts, customer confusion',
+        fix: 'Implemented timeout handling and status polling',
+        tests: '12 tests passing',
+        fixed: true
+      },
+      {
+        id: 'NGE-13820',
+        title: 'Scanner continuously active on all screens',
+        priority: 'Highest',
+        category: 'api',
+        screen: 'scanner',
+        selector: '#scanner-area',
+        impact: 'Accidental scans, order errors',
+        fix: 'Context-aware scanner activation',
+        tests: '9 tests passing',
+        fixed: true
+      },
+      {
+        id: 'NGE-13897',
+        title: 'Quantity sliders sync when editing items',
+        priority: 'Highest',
+        category: 'ui',
+        screen: 'order',
+        selector: '#order-item-1',
+        impact: 'Wrong quantities ordered',
+        fix: 'Independent slider state per item',
+        tests: '11 tests passing',
+        fixed: true
+      }
+    ];
+
+    let currentMode = 'broken';
+    let selectedBug = null;
+
+    // Initialize
+    function init() {
+      renderBugList();
+      updateKioskState();
+    }
+
+    // Render bug list
+    function renderBugList() {
+      const list = document.getElementById('bugList');
+      list.innerHTML = bugs.map(bug => `
+        <div class="bug-card ${bug.fixed ? 'fixed' : ''} ${selectedBug === bug.id ? 'active' : ''}" 
+             onclick="selectBug('${bug.id}')"
+             data-bug-id="${bug.id}">
+          <div class="bug-id">${bug.id}</div>
+          <div class="bug-title">${bug.title}</div>
+          <div class="bug-meta">
+            <span class="bug-priority priority-${bug.priority.toLowerCase()}">${bug.priority}</span>
+            <span>${bug.category.toUpperCase()}</span>
+            ${bug.fixed ? '<span class="status-badge status-fixed">✓ FIXED</span>' : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Select bug
+    function selectBug(bugId) {
+      selectedBug = bugId;
+      const bug = bugs.find(b => b.id === bugId);
+      
+      // Update UI
+      renderBugList();
+      showBugDetail(bug);
+      
+      // Switch to correct screen
+      switchScreen(bug.screen);
+      
+      // Highlight in kiosk
+      highlightBugInKiosk(bug);
+    }
+
+    // Show bug detail
+    function showBugDetail(bug) {
+      const detail = document.getElementById('bugDetail');
+      detail.innerHTML = `
+        <h3>${bug.id}</h3>
+        <div class="detail-section">
+          <div class="detail-label">Bug Description</div>
+          <div class="detail-value">${bug.title}</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Business Impact</div>
+          <div class="detail-value" style="color: var(--accent-danger);">${bug.impact}</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Fix Applied</div>
+          <div class="detail-value" style="color: var(--accent-success);">${bug.fix}</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Test Status</div>
+          <div class="detail-value" style="color: var(--accent-primary);">✅ ${bug.tests}</div>
+        </div>
+      `;
+    }
+
+    // Highlight bug in kiosk
+    function highlightBugInKiosk(bug) {
+      const highlight = document.getElementById('bugHighlight');
+      const element = document.querySelector(bug.selector);
+      
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        const container = document.getElementById('kioskContent').getBoundingClientRect();
+        
+        highlight.style.left = (rect.left - container.left) + 'px';
+        highlight.style.top = (rect.top - container.top + kioskContent.scrollTop) + 'px';
+        highlight.style.width = rect.width + 'px';
+        highlight.style.height = rect.height + 'px';
+        highlight.classList.add('active');
+        
+        // Scroll to element
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // Switch screen
+    function switchScreen(screen) {
+      document.querySelectorAll('.screen-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.kiosk-nav-btn').forEach(b => b.classList.remove('active'));
+      
+      document.getElementById('screen-' + screen).classList.add('active');
+      event.target.classList.add('active');
+      
+      // Re-highlight if bug selected
+      if (selectedBug) {
+        const bug = bugs.find(b => b.id === selectedBug);
+        if (bug.screen === screen) {
+          setTimeout(() => highlightBugInKiosk(bug), 100);
+        }
+      }
+    }
+
+    // Set mode (broken/fixed)
+    function setMode(mode) {
+      currentMode = mode;
+      
+      document.getElementById('btn-broken').classList.toggle('active', mode === 'broken');
+      document.getElementById('btn-fixed').classList.toggle('active', mode === 'fixed');
+      document.getElementById('kioskFrame').classList.toggle('broken', mode === 'broken');
+      
+      updateKioskState();
+    }
+
+    // Update kiosk based on mode
+    function updateKioskState() {
+      const isBroken = currentMode === 'broken';
+      
+      // Payment screen
+      const cardType = document.getElementById('card-type-display');
+      if (cardType) {
+        cardType.textContent = isBroken ? 'Credit / N/A' : 'Visa ending in 4242';
+        cardType.className = isBroken ? 'card-type na' : 'card-type';
+      }
+      
+      // Refund screen
+      const refundStatus = document.getElementById('refund-status-display');
+      if (refundStatus) {
+        refundStatus.textContent = isBroken ? 'Failed to refund' : 'Refund successful';
+        refundStatus.className = isBroken ? 'refund-status error' : 'refund-status success';
+      }
+      
+      // Scanner screen
+      const scannerStatus = document.getElementById('scanner-status');
+      const scannerLaser = document.getElementById('scanner-laser');
+      if (scannerStatus) {
+        if (isBroken) {
+          scannerStatus.textContent = 'Scanner active on ALL screens';
+          scannerStatus.style.color = 'var(--accent-danger)';
+          scannerLaser.style.display = 'block';
+        } else {
+          scannerStatus.textContent = 'Scanner active';
+          scannerStatus.style.color = 'var(--accent-success)';
+          // Only show laser on scanner screen in fixed mode
+          scannerLaser.style.display = document.getElementById('screen-scanner').classList.contains('active') ? 'block' : 'none';
+        }
+      }
+    }
+
+    // Initialize
+    init();
+  </script>
+</body>
+</html>
